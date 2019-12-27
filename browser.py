@@ -1,5 +1,6 @@
 #Must be in python2
 import mechanize
+import re
 
 class browser:
     def __init__(self, cookies = None, headers = None):
@@ -29,9 +30,9 @@ class browser:
             print("ACTION: ")
             print(form.action)
 
-    def search_facebook(self, form_number=0, field = "q", q = None):
-        self.browser.select_form(nr = 0)       #This is login-password form -> nr = number = 0
-        self.browser.form[field] = q
+    def search_facebook(self, form_number=0, field = "q", field_value = None):
+        self.browser.select_form(nr = form_number)       #This is login-password form -> nr = number = 0
+        self.browser.form[field] = field_value
         response = self.browser.submit()
         return response
 
@@ -43,3 +44,30 @@ class browser:
         print(self.browser.geturl())
         print("INFO: ")
         print(self.browser.response().info())
+
+    def seed(self, url):
+        self.browser.open(url)
+
+    def see_more_friends(self):
+        friends_url = self.browser.geturl() + "/friends"
+        resp = str(self.browser.open(friends_url).read())
+        start = resp.find("m_more_friends\",href:\"") + len("m_more_friends\",href:\"")
+        end = resp.find("\"", start)
+        self.browser.open("https://m.facebook.com" + resp[start:end])
+        return self.browser.geturl();
+
+    def print_links(self):
+        print("START ---------------------------------")
+        i = 0
+        for link in self.browser.links():
+            print("I: "+str(i))
+            print("ABS LINK: " + str(link.absolute_url))
+            print("url: " + str(link.url))
+            print("base_url: " + str(link.base_url))
+            print("text: " + str(link.text))
+            print("tag: " + str(link.tag))
+            print("")
+            i+= 1
+
+        print("FORMS")
+        self.list_forms()
