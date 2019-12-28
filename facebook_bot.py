@@ -36,14 +36,14 @@ class facebook_bot:
                 new_friends_urls = self.get_friends_urls(url)
                 # ####################################################################################################
                 for friend in new_friends_urls:
-                    if friend in all_urls or friend in current_urls or firend in new_urls: # If the friend of this profile already exist in the old_urls, the current_urls, or in the new_urls
+                    if friend in self.all_urls or friend in self.current_urls or friend in self.new_urls: # If the friend of this profile already exist in the old_urls, the current_urls, or in the new_urls
                         print("link already exist")
                     else:
                         self.new_urls.append(friend)
-            self.all_urls.append(current_urls)
-            self.current_urls = new_urls
+            self.all_urls += self.current_urls
+            self.current_urls = self.new_urls
             self.new_urls = []
-        self.all_urls.append(current_urls)
+        self.all_urls += self.current_urls
 
     def print_all_urls(self):
         i=0
@@ -65,18 +65,23 @@ class facebook_bot:
             print(curr_url)
             resp = self.browser.open(curr_url)
             resp_str = str(resp.read())
+#             print(resp_str)
             i = 0
             for link in self.browser.links():
                 # is a correct link (not one of the first ones, not picture or add friend link)
                 if(i >= 7 and link.text != "" and link.text != "Add Friend"):
-                    ret_val.append(link.absolute_url);
+                    print(link.absolute_url)
+                    ret_val.append(str(link.absolute_url));
                 i += 1;
             # goto next friend page
-            start = resp_str.find("m_more_friends\",href:\"") + len("m_more_friends\",href:\"")
+            
+            start = resp_str.find("m_more_friends\"><a href=\"")
             if(start != -1):
+                start += len("m_more_friends\"><a href=\"")
                 end = resp_str.find("\"", start)
                 curr_url = "https://m.facebook.com" + resp_str[start:end]
             else:
                 finished_friends = True;
                 self.browser.open(start_url);
+        
         return ret_val;
