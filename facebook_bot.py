@@ -1,4 +1,7 @@
 import mechanize
+import time
+import os
+from BeautifulSoup import BeautifulSoup
 
 class facebook_bot:
     def __init__(self, email, password, fb_url = "https://m.facebook.com", depth = 2):
@@ -53,8 +56,50 @@ class facebook_bot:
             i+=1
 
     def populate_db(self, url_of_profile):
-        #Populate the data from a profile link into our my sql db
-        return None # or a response
+        resp = self.browser.open(url_of_profile)
+        folder_name = url_of_profile.split("/")[-1]
+        links_till_profile_pic = 3
+        is_after_menu = False
+        profile_pic_link = None
+        for link in self.browser.links(): # Getting the profile picture link
+            print(link.absolute_url)
+            print(link.text)
+            if link.text == "Menu":
+                is_after_menu = True
+            if is_after_menu:
+                links_till_profile_pic-=1
+            if links_till_profile_pic == 0:
+                profile_pic_link = link.absolute_url
+                break
+
+        resp = self.browser.open(profile_pic_link) # go to profile picture link
+        os.system("mkdir -p ./profiles/"+folder_name) # Create new directory based off of unique link name
+
+        first_pic = None
+        end_loop = False
+        i = 0
+        while i<50 and end_loop!=True: # This loop populates the profile pictures folder with all of the users profile pictures, up to 50 prof pics
+            soup = BeautifulSoup(resp)
+            image_tags = soup.findAll("img")
+            for image in image_tags:
+                link_name = image['src']
+                if link_name.find("https://scontent") != -1:
+                    data = self.browser.open(link_name).read()
+                    self.browser.back()
+                    if data == first_pic:
+                        end_loop = True
+                        break;
+                    save = open("./profiles/"+folder_name+"/profpic"+str(i)+".jpg", "wb")
+                    save.write(data)
+                    save.close()
+                    if first_pic is None: # establish first picture
+                        first_pic = data
+            for link in self.browser.links():
+                if link.text == "Next":
+                    resp = self.browser.open(link.absolute_url)
+            i+=1
+
+        return None
 
     def get_friends_urls(self, start_url):
         finished_friends = False;
@@ -69,19 +114,22 @@ class facebook_bot:
             i = 0
             for link in self.browser.links():
                 # is a correct link (not one of the first ones, not picture or add friend link)
-                if(i >= 7 and link.text != "" and link.text != "Add Friend"):
+                if(link.text != "" and link.text != "Add Friend" and str(link.absolute_url).find("?fref=fr_tab") != -1):
+                    ret_val.append(str(link.absolute_url).split("?")[0]);
                     print(link.absolute_url)
-                    ret_val.append(str(link.absolute_url));
+                    print(link.text)
                 i += 1;
             # goto next friend page
-            
+
             start = resp_str.find("m_more_friends\"><a href=\"")
             if(start != -1):
+                time.sleep(20)
                 start += len("m_more_friends\"><a href=\"")
                 end = resp_str.find("\"", start)
                 curr_url = "https://m.facebook.com" + resp_str[start:end]
             else:
                 finished_friends = True;
                 self.browser.open(start_url);
-        
+        print("END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
         return ret_val;
