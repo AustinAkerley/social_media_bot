@@ -28,7 +28,7 @@ class facebook_bot:
         f.seek(self.account_offsets[self.curr_account])
         email, password = f.next().split(",");
         f.close();
-        
+
         # Open facebook
         self.browser = mechanize.Browser()
         self.browser.set_handle_robots(False)
@@ -77,6 +77,7 @@ class facebook_bot:
 
     def populate_db(self, url_of_profile):
         resp = self.browser.open(url_of_profile)
+        print("Current URL of Page: "+self.browser.geturl())
         folder_name = url_of_profile.split("/")[-1]
         links_till_profile_pic = 3
         is_after_menu = False
@@ -93,6 +94,7 @@ class facebook_bot:
                 break
 
         resp = self.browser.open(profile_pic_link) # go to profile picture link
+        print("Profile Pic URL: "+self.browser.geturl())
         os.system("mkdir -p ./profiles/"+folder_name) # Create new directory based off of unique link name
 
         first_pic = None
@@ -103,6 +105,9 @@ class facebook_bot:
             print("On Profile Picture {"+str(i)+"}")
             soup = BeautifulSoup(resp)
             image_tags = soup.findAll("img")
+            if image_tags is None or image_tags is []:
+                print("No image tags ")
+                break
             for image in image_tags:
                 link_name = image['src']
                 if link_name.find("https://scontent") != -1:
