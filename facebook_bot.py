@@ -8,7 +8,27 @@ import face_recognition
 from BeautifulSoup import BeautifulSoup
 
 class facebook_bot:
-    def __init__(self, email, password, fb_url = "https://m.facebook.com", depth = 2):
+    def __init__(self, account_file = "./facebook_login.txt", depth = 2):
+        self.account_file = account_file
+        self.curr_account = 0
+        self.account_offsets = []
+        offset = 0
+        f = open(self.account_file, "rb", 0)
+        for line in f:
+            self.account_offsets.append(offset)
+            offset += len(line)
+        f.close()
+        self.switch_account();
+        self.browser.open("https://m.facebook.com") # Go to Bobby Yeet's home page
+        print("HOME PAGE URL: ")
+        print(self.browser.geturl())
+
+    def switch_account(self):
+        f = open(self.account_file, "rb", 0)
+        f.seek(self.account_offsets[self.curr_account])
+        email, password = f.next().split(",");
+        f.close();
+        
         # Open facebook
         self.browser = mechanize.Browser()
         self.browser.set_handle_robots(False)
@@ -16,17 +36,16 @@ class facebook_bot:
         self.browser.set_cookiejar(cookies)
         self.browser.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US) AppleWebKit/534.7 (KHTML, like Gecko) Chrome/7.0.517.41 Safari/534.7')]
         self.browser.set_handle_refresh(False)
-        self.browser.open(fb_url)
+        self.browser.open("https://m.facebook.com")
         print("LOGIN PAGE URL: ")
         print(self.browser.geturl())
         # login
         self.browser.select_form(nr = 0)       #This is login-password form -> nr = number = 0
         self.browser.form['email'] = email
         self.browser.form['pass'] = password
-        response = self.browser.submit()
-        self.browser.open(fb_url) # Go to Bobby Yeet's home page
-        print("HOME PAGE URL: ")
-        print(self.browser.geturl())
+        self.browser.submit()
+        self.curr_account = (self.curr_account + 1) % len(self.account_offsets)
+        return email, password
 
     def explore_and_whore(self, seed_url, depth = 2):
         self.depth = depth
@@ -142,8 +161,8 @@ class facebook_bot:
                     compares = face_recognition.compare_faces(persons[person], encoding) # Compare each existing face encoding of a person to this new face encoding creates a list of True or False values
                     matches = 0
                     for compare in compares:
-                         if compare:
-                             matches += 1
+                        if compare:
+                            matches += 1
                     if (matches >= len(compares) / 2): # Successful majority match to an existing person, add this new encoding to that persons list of face encodings
                         persons[person].append(encoding)
                         persons_pictures[person].append(face_image)
@@ -217,17 +236,14 @@ class facebook_bot:
             resp_str = str(resp.read())
 #             print(resp_str)
             i = 0
+            friends_on_page = 0
             for link in self.browser.links():
                 # is a correct link (not one of the first ones, not picture or add friend link)
-                try:
-                    str(link.absolute_url)
-                except UnicodeEncodeError:
-                    print("Link could not be converted to unicode"str(link.text))
-                    break
                 if(link.text != "" and link.text != "Add Friend" and link.absolute_url.find("?fref=fr_tab") != -1):
                     print("Gathering friends from link: " + start_url)
                     print("FOUND: "+link.text)
                     ret_val.append(str(link.absolute_url).split("?")[0]);
+                    friends_on_page += 1;
                     #print("\nProfile:")
                     #print(str(link.absolute_url).split("?")[0])
                     #print(link.text)
@@ -240,6 +256,8 @@ class facebook_bot:
                 start += len("m_more_friends\"><a href=\"")
                 end = resp_str.find("\"", start)
                 curr_url = "https://m.facebook.com" + resp_str[start:end]
+            elif friends_on_page == 0:
+                self.switch_account();
             else:
                 finished_friends = True;
                 self.browser.open(start_url);
