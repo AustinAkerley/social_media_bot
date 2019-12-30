@@ -1,6 +1,9 @@
 import mechanize
 import time
 import os
+import numpy as np
+from PIL import Image
+import face_recognition
 from BeautifulSoup import BeautifulSoup
 
 class facebook_bot:
@@ -36,6 +39,7 @@ class facebook_bot:
                 self.populate_db(url) # Should add itself to the mysql database @@@@@@@@@@@@@@@@@@
                 # temporary list of friends from the current profile we're adding to the database ####################
                 # Should return an empty list if profile is private, but return all of their friends if public
+            for url in self.current_urls:
                 new_friends_urls = self.get_friends_urls(url)
                 # ####################################################################################################
                 for friend in new_friends_urls:
@@ -98,8 +102,113 @@ class facebook_bot:
                 if link.text == "Next":
                     resp = self.browser.open(link.absolute_url)
             i+=1
+        # Now that we've saved off the
+        folder_dir = "./profiles/"+folder_name
+        self.process_prof_pics(folder_dir)
+        # Now get general info like sex, hometown, etc... Whatever they provide
+        self.get_general_profile_info(url_of_profile)
+
+        i=0
+        for link in self.browser.links(): # Getting the profile picture link
+            print("i: "+str(i))
+            print(link.absolute_url)
+            print(link.text)
+            i+=1
 
         return None
+
+    def get_general_profile_info(self, profile_url):
+        resp = self.browser.open(profile_url)
+        print("Current URL: "+self.browser.geturl())
+
+    def process_prof_pics(self, dir):
+        pic_num = 0
+        file_path = dir +"/profpic" + str(pic_num)+".jpg"
+        prof_name = dir.split("/")[-1]
+        persons = {"person0" : []};
+        persons_pictures = {"person0": []}
+        while (os.path.isfile(file_path)): # Iterate through all of the profile pictures
+            image = face_recognition.load_image_file(file_path)
+            face_locations = face_recognition.face_locations(image) # List of top, bottom, left, rights
+            print("PICTURE "+str(pic_num)+": ")
+            print("I found {} face(s) in this photograph.".format(len(face_locations)))
+
+            encodings = face_recognition.face_encodings(image, face_locations) # List of arrays size 128
+            face_image = None
+            face_iterator = 0
+            for encoding in encodings: # Iterate through all of the face encodings of the picture
+                found_person = False
+                top, right, bottom, left = face_locations[face_iterator]
+                face_image = (image, image[top:bottom, left:right])
+                for person in persons:
+                    if person is []: # Person doesn't have a picture yet, assign the face to that person
+                        persons[person] += encoding
+                        persons_pictures[person].append(face_image)
+                        break
+                    compares = face_recognition.compare_faces(persons[person], encoding) # Compare each existing face encoding of a person to this new face encoding creates a list of True or False values
+                    matches = 0
+                    for compare in compares:
+                         if compare:
+                             matches += 1
+                    if (matches >= len(compares) / 2): # Successful majority match to an existing person, add this new encoding to that persons list of face encodings
+                        persons[person].append(encoding)
+                        persons_pictures[person].append(face_image)
+                        found_person = True;
+                        break;
+                if not found_person:
+                        persons.update({"person" + str(len(persons)) : [encoding]})
+                        persons_pictures.update({ "person" + str(len(persons_pictures)) : [face_image]})
+                face_iterator+=1
+            pic_num+=1
+            file_path = dir +"/profpic" + str(pic_num)+".jpg"
+
+        # find person with the most faces in all the profiles pictures
+        longest = None
+        for person in persons:
+            if longest is None or len(persons[person]) > len(longest):
+                longest = person
+
+        # Find the image that matches all the other images in the most often face the most (most average face)
+        best_img = None
+        best_img_match = 0
+        best_img_loc = None
+        for i in range(0,len(persons[longest])):
+            if best_img_loc is None:
+                best_img_loc = i
+                best_img = persons_pictures[longest][i]
+                dists = face_recognition.face_distance(persons[longest], persons[longest][i])
+                best_img_match = np.mean(dists)
+            else:
+                dists = face_recognition.face_distance(persons[longest], persons[longest][i])
+                avg = np.mean(dists)
+                if avg < best_img_match:
+                    best_img_loc = i;
+                    best_img = persons_pictures[longest][i]
+                    best_img_match = avg
+        prof_name_list = []
+        prof_full_name = ""
+        for name in prof_name.split("."):
+            if not name.isdigit(): #If the name isn't a digit
+                prof_name_list.append(name)
+                if name != prof_name.split(".")[-1]:
+                    prof_full_name = prof_full_name + name + " "
+                else:
+                    prof_full_name += name
+
+        face_id = persons[longest][best_img_loc]
+        prof_pic = best_img
+
+        print("Name: "+prof_full_name)
+        print("Profile Face ID: "+ str(face_id))
+        print("Profile Picture: ")
+        os.system("rm -rf "+dir+"/*")
+        path_to_file = dir+"/profile.jpg"
+        pil_image = Image.fromarray(best_img[1])
+        pil_image.save(path_to_file)
+        path_to_file = dir+"/original_picture.jpg"
+        pil_image = Image.fromarray(best_img[0])
+        pil_image.save(path_to_file)
+        return{"name" : prof_full_name, "face_id" : face_id, "prof_pic" : path_to_file}
 
     def get_friends_urls(self, start_url):
         finished_friends = False;
@@ -116,7 +225,8 @@ class facebook_bot:
                 # is a correct link (not one of the first ones, not picture or add friend link)
                 if(link.text != "" and link.text != "Add Friend" and str(link.absolute_url).find("?fref=fr_tab") != -1):
                     ret_val.append(str(link.absolute_url).split("?")[0]);
-                    print(link.absolute_url)
+                    print("\nProfile:")
+                    print(str(link.absolute_url).split("?")[0])
                     print(link.text)
                 i += 1;
             # goto next friend page

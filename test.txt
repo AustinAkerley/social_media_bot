@@ -1,9 +1,0 @@
-LOGIN PAGE URL: 
-https://m.facebook.com
-HOME PAGE URL: 
-https://m.facebook.com
-CURR URL: 
-https://m.facebook.com/lenzi.johnson/friends
-END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-i: 0
-https://m.facebook.com/lenzi.johnson
