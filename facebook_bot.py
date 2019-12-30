@@ -51,6 +51,9 @@ class facebook_bot:
             self.all_urls += self.current_urls
             self.current_urls = self.new_urls
             self.new_urls = []
+        for url in self.current_urls:
+            resp = self.browser.open(url)
+            self.populate_db(url)
         self.all_urls += self.current_urls
 
     def populate_db(self, url_of_profile):
