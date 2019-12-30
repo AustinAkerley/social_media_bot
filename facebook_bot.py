@@ -1,6 +1,7 @@
 import mechanize
 import time
 import os
+import json
 import numpy as np
 from PIL import Image
 import face_recognition
@@ -44,7 +45,7 @@ class facebook_bot:
                 # ####################################################################################################
                 for friend in new_friends_urls:
                     if friend in self.all_urls or friend in self.current_urls or friend in self.new_urls: # If the friend of this profile already exist in the old_urls, the current_urls, or in the new_urls
-                        print("link already exist")
+                        print("profile: "+str(friend)+" already exist")
                     else:
                         self.new_urls.append(friend)
             self.all_urls += self.current_urls
@@ -66,8 +67,8 @@ class facebook_bot:
         is_after_menu = False
         profile_pic_link = None
         for link in self.browser.links(): # Getting the profile picture link
-            print(link.absolute_url)
-            print(link.text)
+            #print(link.absolute_url)
+            #print(link.text)
             if link.text == "Menu":
                 is_after_menu = True
             if is_after_menu:
@@ -82,7 +83,9 @@ class facebook_bot:
         first_pic = None
         end_loop = False
         i = 0
+        print(" FOLDER NAME: "+str(folder_name))
         while i<50 and end_loop!=True: # This loop populates the profile pictures folder with all of the users profile pictures, up to 50 prof pics
+            print("On Profile Picture {"+str(i)+"}")
             soup = BeautifulSoup(resp)
             image_tags = soup.findAll("img")
             for image in image_tags:
@@ -100,21 +103,15 @@ class facebook_bot:
                         first_pic = data
             for link in self.browser.links():
                 if link.text == "Next":
+                    time.sleep(8)
                     resp = self.browser.open(link.absolute_url)
             i+=1
-        # Now that we've saved off the
         folder_dir = "./profiles/"+folder_name
-        self.process_prof_pics(folder_dir)
+        db_profile = self.process_prof_pics(folder_dir)
         # Now get general info like sex, hometown, etc... Whatever they provide
-        self.get_general_profile_info(url_of_profile)
-
-        i=0
-        for link in self.browser.links(): # Getting the profile picture link
-            print("i: "+str(i))
-            print(link.absolute_url)
-            print(link.text)
-            i+=1
-
+        with open('profiles.json', 'wt') as fp:
+            json.dump(db_profile, fp)
+        #self.get_general_profile_info(url_of_profile)
         return None
 
     def get_general_profile_info(self, profile_url):
@@ -161,13 +158,11 @@ class facebook_bot:
                 face_iterator+=1
             pic_num+=1
             file_path = dir +"/profpic" + str(pic_num)+".jpg"
-
         # find person with the most faces in all the profiles pictures
         longest = None
         for person in persons:
             if longest is None or len(persons[person]) > len(longest):
                 longest = person
-
         # Find the image that matches all the other images in the most often face the most (most average face)
         best_img = None
         best_img_match = 0
@@ -215,8 +210,8 @@ class facebook_bot:
         curr_url = start_url + "/friends"
         ret_val = [];
         while(not finished_friends):
-            print("CURR URL: ")
-            print(curr_url)
+            #print("CURR URL: ")
+            #print(curr_url)
             resp = self.browser.open(curr_url)
             resp_str = str(resp.read())
 #             print(resp_str)
@@ -225,9 +220,9 @@ class facebook_bot:
                 # is a correct link (not one of the first ones, not picture or add friend link)
                 if(link.text != "" and link.text != "Add Friend" and str(link.absolute_url).find("?fref=fr_tab") != -1):
                     ret_val.append(str(link.absolute_url).split("?")[0]);
-                    print("\nProfile:")
-                    print(str(link.absolute_url).split("?")[0])
-                    print(link.text)
+                    #print("\nProfile:")
+                    #print(str(link.absolute_url).split("?")[0])
+                    #print(link.text)
                 i += 1;
             # goto next friend page
 
@@ -240,6 +235,6 @@ class facebook_bot:
             else:
                 finished_friends = True;
                 self.browser.open(start_url);
-        print("END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+        #print("END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
         return ret_val;
