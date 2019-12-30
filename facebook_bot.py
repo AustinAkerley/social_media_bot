@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 import face_recognition
 from BeautifulSoup import BeautifulSoup
+from bs4.diagnose import profile
 
 class facebook_bot:
     def __init__(self, account_file = "./facebook_login.txt", depth = 2):
@@ -101,6 +102,9 @@ class facebook_bot:
         end_loop = False
         i = 0
         print(" FOLDER NAME: "+str(folder_name))
+        
+        
+        
         while i<50 and end_loop!=True: # This loop populates the profile pictures folder with all of the users profile pictures, up to 50 prof pics
             print("On Profile Picture {"+str(i)+"}")
             soup = BeautifulSoup(resp)
@@ -108,9 +112,11 @@ class facebook_bot:
             if image_tags is None or image_tags is []:
                 print("No image tags ")
                 break
+            picture_exists = False
             for image in image_tags:
                 link_name = image['src']
                 if link_name.find("https://scontent") != -1:
+                    picture_exists = True
                     data = self.browser.open(link_name).read()
                     self.browser.back()
                     if data == first_pic:
@@ -121,18 +127,30 @@ class facebook_bot:
                     save.close()
                     if first_pic is None: # establish first picture
                         first_pic = data
+            if not picture_exists:
+                self.switch_account()
+                self.browser.open(profile_pic_link);
+                print("GOT BANNED AND SWITCHED ACCOUNTS")
+                continue;
+                
             for link in self.browser.links():
                 if link.text == "Next":
                     time.sleep(2)
-                    resp = self.browser.open(link.absolute_url)
+                    profile_pic_link = link.absolute_url;
+                    resp = self.browser.open(profile_pic_link)
+                    
             i+=1
         folder_dir = "./profiles/"+folder_name
         db_profile = self.process_prof_pics(folder_dir)
-        db_profile.update({"face_book_link" : url_of_profile})
-        # Now get general info like sex, hometown, etc... Whatever they provide
-        with open('profiles.json', 'wt') as fp:
-            json.dump(db_profile, fp)
+        # Get general info, no implemeneted yet.
         #self.get_general_profile_info(url_of_profile)
+        
+        profile_dict = {url_of_profile: db_profile}
+        # Now get general info like sex, hometown, etc... Whatever they provide
+        with open('profiles.json','a') as f:
+            profile_dict_str = json.dumps(profile_dict)
+            f.write(profile_dict_str + ",\n")
+
         return None
 
     def get_general_profile_info(self, profile_url):
@@ -151,6 +169,11 @@ class facebook_bot:
             print("PICTURE "+str(pic_num)+": ")
             print("I found {} face(s) in this photograph.".format(len(face_locations)))
 
+            if len(face_locations) == 0:
+                pic_num+=1
+                file_path = dir +"/profpic" + str(pic_num)+".jpg"
+                continue; # skip this picture and go to the next
+            
             encodings = face_recognition.face_encodings(image, face_locations) # List of arrays size 128
             face_image = None
             face_iterator = 0
@@ -211,20 +234,21 @@ class facebook_bot:
                 else:
                     prof_full_name += name
 
-        face_id = persons[longest][best_img_loc]
-        prof_pic = best_img
+        face_id = persons[longest][best_img_loc] if best_img_loc is not None else None;
 
         os.system("rm -rf "+dir+"/*")
 
-        path_to_file = dir+"/profile.jpg"
-        pil_image = Image.fromarray(best_img[1])
-        pil_image.save(path_to_file)
-        path_to_file = dir+"/original_picture.jpg"
-        pil_image = Image.fromarray(best_img[0])
-        pil_image.save(path_to_file)
-        face_id = face_id.tolist()
+        path_to_file = None;
+        if best_img is not None:
+            path_to_file = dir+"/profile.jpg"
+            pil_image = Image.fromarray(best_img[1])
+            pil_image.save(path_to_file)
+            path_to_file = dir+"/original_picture.jpg"
+            pil_image = Image.fromarray(best_img[0])
+            pil_image.save(path_to_file)
+            face_id = face_id.tolist()
 
-        print("Name: "+prof_full_name)
+        print("Name: " + prof_full_name)
         print("Profile Face ID: "+ str(face_id))
         print("Profile Picture: ")
 
