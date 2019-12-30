@@ -53,13 +53,6 @@ class facebook_bot:
             self.new_urls = []
         self.all_urls += self.current_urls
 
-    def print_all_urls(self):
-        i=0
-        for url in self.all_urls:
-            print("i: "+str(i))
-            print(url)
-            i+=1
-
     def populate_db(self, url_of_profile):
         resp = self.browser.open(url_of_profile)
         folder_name = url_of_profile.split("/")[-1]
@@ -103,11 +96,12 @@ class facebook_bot:
                         first_pic = data
             for link in self.browser.links():
                 if link.text == "Next":
-                    time.sleep(8)
+                    time.sleep(2)
                     resp = self.browser.open(link.absolute_url)
             i+=1
         folder_dir = "./profiles/"+folder_name
         db_profile = self.process_prof_pics(folder_dir)
+        db_profile.update({"face_book_link" : url_of_profile})
         # Now get general info like sex, hometown, etc... Whatever they provide
         with open('profiles.json', 'wt') as fp:
             json.dump(db_profile, fp)
@@ -193,16 +187,20 @@ class facebook_bot:
         face_id = persons[longest][best_img_loc]
         prof_pic = best_img
 
-        print("Name: "+prof_full_name)
-        print("Profile Face ID: "+ str(face_id))
-        print("Profile Picture: ")
         os.system("rm -rf "+dir+"/*")
+
         path_to_file = dir+"/profile.jpg"
         pil_image = Image.fromarray(best_img[1])
         pil_image.save(path_to_file)
         path_to_file = dir+"/original_picture.jpg"
         pil_image = Image.fromarray(best_img[0])
         pil_image.save(path_to_file)
+        face_id = face_id.tolist()
+
+        print("Name: "+prof_full_name)
+        print("Profile Face ID: "+ str(face_id))
+        print("Profile Picture: ")
+
         return{"name" : prof_full_name, "face_id" : face_id, "prof_pic" : path_to_file}
 
     def get_friends_urls(self, start_url):
@@ -218,7 +216,14 @@ class facebook_bot:
             i = 0
             for link in self.browser.links():
                 # is a correct link (not one of the first ones, not picture or add friend link)
-                if(link.text != "" and link.text != "Add Friend" and str(link.absolute_url).find("?fref=fr_tab") != -1):
+                try:
+                    str(link.absolute_url)
+                except UnicodeEncodeError:
+                    print("Link could not be converted to unicode"str(link.text))
+                    break
+                if(link.text != "" and link.text != "Add Friend" and link.absolute_url.find("?fref=fr_tab") != -1):
+                    print("Gathering friends from link: " + start_url)
+                    print("FOUND: "+link.text)
                     ret_val.append(str(link.absolute_url).split("?")[0]);
                     #print("\nProfile:")
                     #print(str(link.absolute_url).split("?")[0])
@@ -238,3 +243,11 @@ class facebook_bot:
         #print("END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
         return ret_val;
+
+
+    def print_all_urls(self):
+        i=0
+        for url in self.all_urls:
+            print("i: "+str(i))
+            print(url)
+            i+=1
