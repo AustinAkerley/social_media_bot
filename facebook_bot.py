@@ -102,9 +102,9 @@ class facebook_bot:
         end_loop = False
         i = 0
         print(" FOLDER NAME: "+str(folder_name))
-        
-        
-        
+
+
+
         while i<50 and end_loop!=True: # This loop populates the profile pictures folder with all of the users profile pictures, up to 50 prof pics
             print("On Profile Picture {"+str(i)+"}")
             soup = BeautifulSoup(resp)
@@ -132,19 +132,19 @@ class facebook_bot:
                 self.browser.open(profile_pic_link);
                 print("GOT BANNED AND SWITCHED ACCOUNTS")
                 continue;
-                
+
             for link in self.browser.links():
                 if link.text == "Next":
-                    time.sleep(2)
+                    time.sleep(7)
                     profile_pic_link = link.absolute_url;
                     resp = self.browser.open(profile_pic_link)
-                    
+
             i+=1
         folder_dir = "./profiles/"+folder_name
         db_profile = self.process_prof_pics(folder_dir)
         # Get general info, no implemeneted yet.
         #self.get_general_profile_info(url_of_profile)
-        
+
         profile_dict = {url_of_profile: db_profile}
         # Now get general info like sex, hometown, etc... Whatever they provide
         with open('profiles.json','a') as f:
@@ -173,7 +173,7 @@ class facebook_bot:
                 pic_num+=1
                 file_path = dir +"/profpic" + str(pic_num)+".jpg"
                 continue; # skip this picture and go to the next
-            
+
             encodings = face_recognition.face_encodings(image, face_locations) # List of arrays size 128
             face_image = None
             face_iterator = 0
